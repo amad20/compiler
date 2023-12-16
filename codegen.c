@@ -15,6 +15,9 @@ void generateAssembly(Node *node, FILE *outputFile) {
         return;
     }
 
+    printf("Debug: Processing node: %s\n", node->name);
+
+
     if (strcmp(node->name, "<program>") == 0) {
         // Initialize the stack pointer (TOS)
        // fprintf(outputFile, "PUSH\n");
@@ -50,13 +53,21 @@ if (strcmp(node->name, "<in>") == 0) {
     fprintf(outputFile, "READ %s\n", node->token.instance);
 }
 
-
-
 if (strcmp(node->name, "<out>") == 0) {
-        // Assembly code for output
-        generateAssembly(node->child1, outputFile); // Generate code for expression
-        fprintf(outputFile, "WRITE %s\n", node->child1->token.instance);
+    // Generate code for expression
+    generateAssembly(node->child1, outputFile);
+    printf("Debug: Value to be printed: %s\n", node->child1->token.instance);
+
+    // Check if the child node has a valid value
+    if (node->child1 != NULL) {
+        // Load the value onto the stack
+       fprintf(outputFile, "WRITE %s\n", node->child1->token.instance);
+    } else {
+        // Handle error or appropriate behavior for invalid output
+        // You can print an error message or handle it according to your requirements
     }
+    return;
+}
 
 
 if (strcmp(node->name, "<R>") == 0) {
@@ -69,14 +80,13 @@ if (strcmp(node->name, "<R>") == 0) {
         // If the node represents a variable
         fprintf(outputFile, "LOAD %s\n", node->token.instance); // Load the variable
     }
-return;
+    return;
 }
 
 
     if (strcmp(node->name, "<if>") == 0) {
         char* label1 = generateLabel();
         char* label2 = generateLabel();
-
         // Generate code to evaluate arg2
         generateAssembly(node->child1, outputFile);
         // Store the result in result2
@@ -122,39 +132,40 @@ return;
         fprintf(outputFile, "%s: NOOP\n", label2);
     }
 
+if (strcmp(node->name, "<expr>") == 0) {
+    // Handle expression evaluation here
+    generateAssembly(node->child1, outputFile);
+    if (node->child2 != NULL) {
+        // Binary operation (+ or -)
+        generateAssembly(node->child2, outputFile);
+        if (strcmp(node->token.instance, "+") == 0) {
+            fprintf(outputFile, "ADD\n");
+        } else if (strcmp(node->token.instance, "-") == 0) {
+            fprintf(outputFile, "SUB\n");
+        }
+    }
+    return;
+}
 
 if (strcmp(node->name, "<N>") == 0) {
-    generateAssembly(node->child1, outputFile); // Generate code for <R>
-
-    if (node->token.type == OperatorTk && strcmp(node->token.instance, "/") == 0) {
+    generateAssembly(node->child1, outputFile); // Generate code for <M>
+    if (node->child2 != NULL && node->token.type == OperatorTk && strcmp(node->token.instance, "/") == 0) {
         generateAssembly(node->child2, outputFile); // Generate code for <N>
-        fprintf(outputFile, "DIV\n"); // Output DIV instruction
+        fprintf(outputFile, "DIV\n");
     }
+    return;
 }
+
 if (strcmp(node->name, "<M>") == 0) {
-        generateAssembly(node->child1, outputFile); // Generate code for <N>
-
-        if (node->token.type == OperatorTk) {
-            if (strcmp(node->token.instance, "*") == 0) {
-                generateAssembly(node->child2, outputFile); // Generate code for <M>
-                fprintf(outputFile, "MULT\n");
-        }
+    generateAssembly(node->child1, outputFile); // Generate code for <R>
+    if (node->child2 != NULL && node->token.type == OperatorTk && strcmp(node->token.instance, "*") == 0) {
+        generateAssembly(node->child2, outputFile); // Generate code for <M>
+        fprintf(outputFile, "MULT\n");
     }
+    return;
 }
 
-    if (strcmp(node->name, "<expr>") == 0) {
-        // Handle expression evaluation here
-        generateAssembly(node->child1, outputFile);
-        if (node->child2 != NULL) {
-            // Binary operation (+ or -)
-            generateAssembly(node->child2, outputFile);
-            if (strcmp(node->token.instance, "+") == 0) {
-                fprintf(outputFile, "ADD\n");
-            } else if (strcmp(node->token.instance, "-") == 0) {
-                fprintf(outputFile, "SUB\n");
-            }
-        }
-    }
+
 
     // Handle other instructions, storage directives, and expressions here
 
