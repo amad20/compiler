@@ -53,6 +53,7 @@ static Node *program() {
         syntaxError("Expected 'main'");
     }
 
+ node->child1 = vars();
     node->child2 = stats();
 
     if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "end") == 0) {
@@ -63,6 +64,10 @@ static Node *program() {
 
     return node;
 }
+
+
+
+
 static Node *vars() {
     Node *node = createNode("<vars>");
 
@@ -96,7 +101,6 @@ static Node *varList() {
     }
     return node;
 }
-
 
 
 // <exp> -> <M> + <exp> | <M> - <exp> | <M>
@@ -159,6 +163,7 @@ static Node *R() {
     }
     return node;
 }
+
 static Node *stats() {
     Node *node = createNode("<stats>");
     node->child1 = stat();
@@ -173,56 +178,77 @@ static Node *stats() {
 // <mStat> -> empty | <stat> <mStat>
 static Node *mStat() {
     Node *node = createNode("<mStat>");
-
-    // Check if the current token is a keyword
-    if (currentToken.type == KeywordTk) {
-        // If it's the 'end' token, it signifies the end of the program
-        if (strcmp(currentToken.instance, "end") == 0) {
-            return NULL; // or return an empty node
-        } else {
-            // It's a different keyword, proceed to parse a <stat>
-            node->child1 = stat();
-            node->child2 = mStat();
-        }
-    } //else {
-        // The current token is not a keyword, return the node as is
-       // return node;
-   // }
+ 
+    Node *potentialStat = stat();
+    if (potentialStat != NULL) {
+        node->child1 = potentialStat;
+        node->child2 = mStat();
+    }
+    // If stat returns NULL, it signifies there's no valid statement starting here
+ 
     return node;
 }
-
-
+ 
 // <stat> -> <in> | <out> | <block> | <if> | <loop> | <assign>
 static Node *stat() {
     Node *node = createNode("<stat>");
-    // Check the current token to decide which production to use
-    if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "scan") == 0) {
-        node->child1 = in();
-    } else if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "print") == 0) {
-        node->child1 = out();
-    } else if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "start") == 0) {
-        node->child1 = block();
-    } else if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "cond") == 0) {
-        node->child1 = if_stat();
-    } else if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "loop") == 0) {
-        node->child1 = loop();
+ 
+    if (currentToken.type == KeywordTk) {
+        if (strcmp(currentToken.instance, "scan") == 0) {
+            node->child1 = in();
+        } else if (strcmp(currentToken.instance, "print") == 0) {
+            node->child1 = out();
+        } else if (strcmp(currentToken.instance, "start") == 0) {
+            node->child1 = block();
+        } else if (strcmp(currentToken.instance, "cond") == 0) {
+            node->child1 = if_stat();
+        } else if (strcmp(currentToken.instance, "loop") == 0) {
+            node->child1 = loop();
+        } else {
+            // The keyword is not the start of a valid statement
+            return NULL;
+        }
     } else if (currentToken.type == IdentifierTk) {
         node->child1 = assign();
     } else {
-        syntaxError("Invalid start of <stat>");
+        // The token is not a valid start of a statement
+        return NULL;
     }
+ 
     return node;
 }
 
 // <block> -> start <vars> <stats> stop
+//static Node *block() {
+//    Node *node = createNode("<block>");
+ //   match(KeywordTk, node); // Matching "start"
+ //   node->child1 = vars();
+ //   node->child2 = stats();
+ //   match(KeywordTk, node); // Matching "stop"
+ //   return node;
+//}
+
+// <block> -> start <vars> <stats> stop
 static Node *block() {
     Node *node = createNode("<block>");
-    match(KeywordTk, node); // Matching "start"
-    node->child1 = vars();
-    node->child2 = stats();
-    match(KeywordTk, node); // Matching "stop"
+
+    if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "start") == 0) {
+        match(KeywordTk, node); // Matching "start"
+        node->child1 = vars();
+        node->child2 = stats();
+
+        if (currentToken.type == KeywordTk && strcmp(currentToken.instance, "stop") == 0) {
+            match(KeywordTk, node); // Matching "stop"
+        } else {
+            syntaxError("Expected 'stop' in block");
+        }
+    } else {
+        syntaxError("Expected 'start' in block");
+    }
+
     return node;
 }
+
 
 // <in> -> scan identifier .
 static Node *in() {
@@ -301,6 +327,7 @@ static Node *RO() {
         match(OperatorTk, node); // Matching a relational operator
     } else {
         syntaxError("Expected a relational operator");
+}
     return node;
 }
 
@@ -339,3 +366,4 @@ void freeParseTree(Node *root) {
     free(root->name);
     free(root);
 }
+
